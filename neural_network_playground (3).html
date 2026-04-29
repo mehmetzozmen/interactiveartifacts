@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neural Network Playground</title>
+<script>
+  MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }, svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+    background: #f7f7f5;
+    color: #1f1f1f;
+    margin: 0;
+    padding: 20px;
+    line-height: 1.45;
+  }
+  .container { max-width: 1240px; margin: 0 auto; }
+  header { margin-bottom: 18px; }
+  h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .subtitle { color: #666; font-size: 13.5px; max-width: 900px; }
+  .layout { display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel { background: white; border: 1px solid #e3e3e0; border-radius: 8px; padding: 16px; }
+
+  .group { margin-bottom: 14px; }
+  .group label {
+    display: block; font-size: 11px; font-weight: 600; margin-bottom: 5px;
+    color: #555; text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  select, input[type="text"] {
+    width: 100%; padding: 6px 8px; border: 1px solid #d4d4d2;
+    border-radius: 4px; font-size: 13.5px; font-family: inherit; background: white;
+  }
+  input[type="range"] { width: 100%; }
+  .value-display { font-size: 12px; color: #777; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .hint { font-size: 11.5px; color: #999; margin-top: 3px; }
+
+  .buttons { display: flex; gap: 6px; margin-top: 14px; }
+  button {
+    flex: 1; padding: 8px 6px; border: 1px solid #1f1f1f; background: #1f1f1f;
+    color: white; border-radius: 4px; cursor: pointer; font-size: 13px; font-family: inherit;
+  }
+  button:hover { background: #333; }
+  button.secondary { background: white; color: #1f1f1f; }
+  button.secondary:hover { background: #f0f0ee; }
+
+  .stats {
+    margin-top: 14px; padding-top: 12px; border-top: 1px solid #ececea;
+    font-size: 12.5px; font-variant-numeric: tabular-nums;
+  }
+  .stat-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+  .stat-label { color: #666; }
+  .stat-value { font-weight: 500; }
+
+  .canvases { display: flex; flex-direction: column; gap: 14px; }
+  .canvas-wrap { background: white; border: 1px solid #e3e3e0; border-radius: 8px; padding: 12px; }
+  .canvas-title {
+    font-size: 12.5px; color: #444; margin-bottom: 8px; font-weight: 500;
+    display: flex; justify-content: space-between; align-items: baseline;
+    flex-wrap: wrap; gap: 4px;
+  }
+  .canvas-title .meta { color: #999; font-weight: 400; font-size: 11.5px; }
+  canvas { display: block; }
+  #network { width: 100%; }
+  #boundary { width: 100%; max-width: 520px; aspect-ratio: 1; margin: 0 auto; }
+  #loss { width: 100%; height: 170px; }
+
+  .legend { display: flex; gap: 14px; margin-top: 8px; font-size: 11.5px; color: #555; flex-wrap: wrap; }
+  .legend-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+  .legend-line { display: inline-block; width: 16px; height: 2px; margin-right: 4px; vertical-align: middle; }
+
+  .math-section { margin-top: 18px; padding: 18px 20px; background: white; border: 1px solid #e3e3e0; border-radius: 8px; font-size: 13.5px; }
+  .math-section h3 { margin-top: 0; font-size: 14px; font-weight: 600; }
+  .math-section p { margin: 8px 0; }
+
+  .exercises {
+    margin-top: 18px; padding: 18px 22px; background: white;
+    border: 1px solid #e3e3e0; border-radius: 8px; font-size: 13.5px;
+  }
+  .exercises > h3 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
+  .exercises > .lead { color: #666; font-size: 13px; margin: 0 0 14px; }
+  .exercise {
+    border-top: 1px solid #ececea; padding: 14px 0;
+  }
+  .exercise:first-of-type { border-top: none; padding-top: 4px; }
+  .exercise summary {
+    cursor: pointer; list-style: none; padding: 4px 0;
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 12px;
+  }
+  .exercise summary::-webkit-details-marker { display: none; }
+  .exercise summary::before {
+    content: "▸"; color: #999; font-size: 11px; margin-right: 8px;
+    transition: transform 0.15s; display: inline-block; flex-shrink: 0;
+  }
+  .exercise[open] summary::before { transform: rotate(90deg); }
+  .ex-title { font-weight: 600; color: #1f1f1f; flex: 1; font-size: 14px; }
+  .ex-tag {
+    font-size: 11px; color: #666; background: #f0f0ee;
+    padding: 2px 8px; border-radius: 10px; white-space: nowrap;
+  }
+  .ex-body { padding: 10px 0 4px 22px; }
+  .ex-body .step { margin: 8px 0; }
+  .ex-body .step-label {
+    display: inline-block; font-size: 10.5px; font-weight: 700;
+    color: #666; text-transform: uppercase; letter-spacing: 0.06em;
+    margin-right: 6px; min-width: 70px;
+  }
+  .ex-body .config {
+    display: inline-block; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12px; background: #f7f7f5; padding: 2px 6px;
+    border-radius: 3px; border: 1px solid #ececea;
+  }
+  .ex-body ul { margin: 4px 0 4px 18px; padding: 0; }
+  .ex-body ul li { margin: 3px 0; }
+  .apply-btn {
+    margin-top: 10px; padding: 5px 12px; font-size: 12px;
+    background: #1f1f1f; color: white; border: 1px solid #1f1f1f;
+    border-radius: 4px; cursor: pointer; font-family: inherit;
+  }
+  .apply-btn:hover { background: #333; }
+  .apply-note { font-size: 11.5px; color: #888; margin-left: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Neural Network Playground</h1>
+    <div class="subtitle">A two-input feed-forward classifier trained from scratch with full-batch gradient descent. Configure architecture, learning rate, and dataset; watch each hidden unit develop its own response surface and the global decision boundary form.</div>
+  </header>
+
+  <div class="layout">
+    <aside class="panel">
+      <div class="group">
+        <label>Dataset</label>
+        <select id="dataset">
+          <option value="xor">XOR</option>
+          <option value="circle">Circle</option>
+          <option value="spiral">Spiral</option>
+          <option value="linear">Linear</option>
+          <option value="checkerboard">Checkerboard</option>
+        </select>
+      </div>
+
+      <div class="group">
+        <label>Noise <span id="noiseValue" class="value-display"></span></label>
+        <input type="range" id="noise" min="0" max="0.4" step="0.01" value="0.08">
+      </div>
+
+      <div class="group">
+        <label>Hidden layers</label>
+        <input type="text" id="arch" value="6, 4">
+        <div class="hint">comma-separated, e.g. "8, 4" → two hidden layers</div>
+      </div>
+
+      <div class="group">
+        <label>Learning rate $\eta$ <span id="lrValue" class="value-display"></span></label>
+        <input type="range" id="lr" min="-3" max="0.3" step="0.05" value="-1">
+      </div>
+
+      <div class="group">
+        <label>Activation</label>
+        <select id="activation">
+          <option value="tanh">tanh</option>
+          <option value="relu">ReLU</option>
+          <option value="sigmoid">sigmoid</option>
+        </select>
+      </div>
+
+      <div class="group">
+        <label>Steps per frame <span id="spfValue" class="value-display"></span></label>
+        <input type="range" id="spf" min="1" max="20" step="1" value="3">
+      </div>
+
+      <div class="buttons">
+        <button id="playBtn">Play</button>
+        <button id="stepBtn" class="secondary">Step</button>
+        <button id="resetBtn" class="secondary">Reset</button>
+      </div>
+      <div class="buttons">
+        <button id="resampleBtn" class="secondary">Resample data</button>
+      </div>
+
+      <div class="stats">
+        <div class="stat-row"><span class="stat-label">Epoch</span><span class="stat-value" id="epoch">0</span></div>
+        <div class="stat-row"><span class="stat-label">Train loss</span><span class="stat-value" id="trainLoss">—</span></div>
+        <div class="stat-row"><span class="stat-label">Test loss</span><span class="stat-value" id="testLoss">—</span></div>
+        <div class="stat-row"><span class="stat-label">Train accuracy</span><span class="stat-value" id="trainAcc">—</span></div>
+        <div class="stat-row"><span class="stat-label">Test accuracy</span><span class="stat-value" id="testAcc">—</span></div>
+      </div>
+    </aside>
+
+    <main class="canvases">
+      <div class="canvas-wrap">
+        <div class="canvas-title">
+          <span>Network architecture</span>
+          <span class="meta">each unit shows its learned response surface over $[-1, 1]^2$</span>
+        </div>
+        <canvas id="network"></canvas>
+        <div class="legend">
+          <span><span class="legend-line" style="background:#ff7f0e"></span>positive weight</span>
+          <span><span class="legend-line" style="background:#1f77b4"></span>negative weight</span>
+          <span style="color:#888">line thickness ∝ |weight|</span>
+        </div>
+      </div>
+
+      <div class="canvas-wrap">
+        <div class="canvas-title">
+          <span>Decision boundary</span>
+          <span class="meta">input space $[-1, 1]^2$</span>
+        </div>
+        <canvas id="boundary" width="520" height="520"></canvas>
+        <div class="legend">
+          <span><span class="legend-dot" style="background:#1f77b4"></span>Class 0</span>
+          <span><span class="legend-dot" style="background:#ff7f0e"></span>Class 1</span>
+          <span><span class="legend-dot" style="background:white;border:1.5px solid #999"></span>Test point</span>
+        </div>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">
+          <span>Training loss</span>
+          <span class="meta">binary cross-entropy</span>
+        </div>
+        <canvas id="loss" width="900" height="170"></canvas>
+      </div>
+    </main>
+  </div>
+
+  <section class="math-section">
+    <h3>What is happening</h3>
+    <p>Each hidden unit computes $a_j^{(l)} = \sigma\!\left(\sum_k W_{jk}^{(l)} a_k^{(l-1)} + b_j^{(l)}\right)$, with $\sigma$ a non-linearity. The output applies a logistic squash $\hat{y} = (1+e^{-z})^{-1}$, giving binary cross-entropy</p>
+    <p>$$\mathcal{L}(\theta) = -\frac{1}{N}\sum_{i=1}^{N}\Big[y_i \log \hat{y}_i + (1-y_i)\log(1-\hat{y}_i)\Big].$$</p>
+    <p>Gradients are obtained by backpropagation (chain rule) and applied via gradient descent $\theta \leftarrow \theta - \eta\, \nabla_\theta \mathcal{L}$. Weights use Glorot initialisation $W \sim \mathcal{U}(-\sqrt{6/(n_\text{in}+n_\text{out})}, +\sqrt{6/(n_\text{in}+n_\text{out})})$. Data are split 80/20 train/test; the loss curve plots <span style="color:#1f77b4">training</span> and <span style="color:#ff7f0e">test</span> loss per epoch. Each unit's heatmap visualises $a_j^{(l)}(x_1, x_2)$ — its activation as a function of inputs, holding learned weights fixed.</p>
+    <p style="color:#555; margin-bottom:0;"><b>Things to try.</b> XOR with a single hidden unit (cannot solve — non-linearly separable; the lone unit's heatmap is just a half-plane). Spiral with $\eta = 1.5$ (diverges). Spiral with $\eta = 0.1$, hidden $[8,\, 8,\, 4]$ — late-layer units develop curved, dataset-specific selectivities. Switch to ReLU on Spiral and look for "dead" units (uniform light heatmaps, zero gradient flow). Increase noise to 0.3 on Checkerboard — test loss eventually rises while training loss continues to fall, a clean overfitting trace.</p>
+  </section>
+
+  <section class="exercises">
+    <h3>Exercises</h3>
+    <p class="lead">Each exercise asks you to <b>commit to a prediction</b> before running the simulation. The "Apply settings" button configures the playground for you, but the prediction step is non-negotiable — write it down before you click anything.</p>
+
+    <details class="exercise">
+      <summary>
+        <span><span class="ex-title">Exercise 1 — The XOR threshold</span></span>
+        <span class="ex-tag">Architecture &amp; capacity</span>
+      </summary>
+      <div class="ex-body">
+        <div class="step"><span class="step-label">Setup</span> XOR, noise = 0.05, tanh, $\eta = 0.1$. Train networks with hidden = <span class="config">1</span>, then <span class="config">2</span>, then <span class="config">3</span>.</div>
+        <div class="step"><span class="step-label">Predict</span> What is the minimum number of hidden units required to solve XOR?</div>
+        <div class="step"><span class="step-label">Run</span> Train each configuration to convergence (around 300 epochs).</div>
+        <div class="step"><span class="step-label">Observe</span>
+          <ul>
+            <li>Final test accuracy in each case.</li>
+            <li>With hidden = 2 (once it converges): examine the two hidden-unit response surfaces. What does each unit appear to specialise in?</li>
+          </ul>
+        </div>
+        <div class="step"><span class="step-label">Reflect</span> XOR can be written as $(x_1 \vee x_2) \wedge \neg(x_1 \wedge x_2)$. Do the two hidden units appear to compute something resembling these two clauses? Why does one unit fundamentally fail, regardless of how long you train?</div>
+        <button class="apply-btn" data-config='{"dataset":"xor","noise":0.05,"arch":"1","activation":"tanh","lr":-1}'>Start with hidden = 1</button>
+        <button class="apply-btn" data-config='{"dataset":"xor","noise":0.05,"arch":"2","activation":"tanh","lr":-1}'>Try hidden = 2</button>
+        <button class="apply-btn" data-config='{"dataset":"xor","noise":0.05,"arch":"3","activation":"tanh","lr":-1}'>Try hidden = 3</button>
+      </div>
+    </details>
+
+    <details class="exercise">
+      <summary>
+        <span><span class="ex-title">Exercise 2 — Initialisation matters</span></span>
+        <span class="ex-tag">Optimisation dynamics</span>
+      </summary>
+      <div class="ex-body">
+        <div class="step"><span class="step-label">Setup</span> XOR, noise = 0.05, hidden = <span class="config">2</span>, tanh, $\eta = 0.1$.</div>
+        <div class="step"><span class="step-label">Predict</span> Click Reset 10 times in succession, training each fresh network for ~300 epochs. Will all 10 runs converge to the same solution?</div>
+        <div class="step"><span class="step-label">Run</span> For each Reset, record the final test accuracy in a small table.</div>
+        <div class="step"><span class="step-label">Observe</span>
+          <ul>
+            <li>Distribution of final accuracies across the 10 runs.</li>
+            <li>How often does the network get stuck below 80%?</li>
+            <li>For runs that fail: what do the hidden-unit response surfaces look like? Are both units pointing in similar directions?</li>
+          </ul>
+        </div>
+        <div class="step"><span class="step-label">Reflect</span> The loss landscape is non-convex — there are local minima and saddle points. What does this exercise reveal about the sensitivity of training to initialisation? Why is it standard practice in deep learning research to report results across multiple random seeds rather than a single run?</div>
+        <button class="apply-btn" data-config='{"dataset":"xor","noise":0.05,"arch":"2","activation":"tanh","lr":-1}'>Apply settings</button>
+        <span class="apply-note">then click Reset 10 times</span>
+      </div>
+    </details>
+
+    <details class="exercise">
+      <summary>
+        <span><span class="ex-title">Exercise 3 — Overfitting in real time</span></span>
+        <span class="ex-tag">Bias-variance trade-off</span>
+      </summary>
+      <div class="ex-body">
+        <div class="step"><span class="step-label">Setup</span> Checkerboard, noise = 0.30, hidden = <span class="config">16, 16</span>, tanh, $\eta = 0.05$. Train for 500+ epochs.</div>
+        <div class="step"><span class="step-label">Predict</span> Sketch what you expect the train and test loss curves to look like. Will they track each other? Diverge? When?</div>
+        <div class="step"><span class="step-label">Run</span> Set steps-per-frame to 10 and let it train. Watch the loss panel.</div>
+        <div class="step"><span class="step-label">Observe</span>
+          <ul>
+            <li>The epoch at which test loss begins to rise while training loss continues falling.</li>
+            <li>Pause around that point. Examine the decision boundary — does it look "wiggly", curving around individual training points?</li>
+            <li>Continue training. How wide does the train/test gap eventually become?</li>
+          </ul>
+        </div>
+        <div class="step"><span class="step-label">Reflect</span> Mark on your loss plot the epoch at which <i>early stopping</i> would have been optimal. Why doesn't the model "know" to stop on its own — what information would it need that it doesn't have during training?</div>
+        <button class="apply-btn" data-config='{"dataset":"checkerboard","noise":0.30,"arch":"16, 16","activation":"tanh","lr":-1.3,"spf":10}'>Apply settings</button>
+      </div>
+    </details>
+
+    <details class="exercise">
+      <summary>
+        <span><span class="ex-title">Exercise 4 — What does each layer compute?</span></span>
+        <span class="ex-tag">Feature learning</span>
+      </summary>
+      <div class="ex-body">
+        <div class="step"><span class="step-label">Setup</span> Spiral, noise = 0.05, hidden = <span class="config">8, 8, 4</span>, tanh, $\eta = 0.1$. Train to convergence (500+ epochs).</div>
+        <div class="step"><span class="step-label">Predict</span> Will deeper layers have simpler or more complex response surfaces? Why?</div>
+        <div class="step"><span class="step-label">Run</span> Train slowly first (steps-per-frame = 1) for 50 epochs to watch features emerge, then increase to 10 to reach convergence.</div>
+        <div class="step"><span class="step-label">Observe</span> Categorise the response surfaces in each hidden layer:
+          <ul>
+            <li><b>Layer 1 (h1):</b> Are these oriented half-planes — linear features rotated and shifted across the input space?</li>
+            <li><b>Layer 2 (h2):</b> Do you see curved or compound features that combine pairs of layer-1 units?</li>
+            <li><b>Layer 3 (h3):</b> Do these resemble spiral-segment selectivities — features tailored to the dataset structure?</li>
+          </ul>
+        </div>
+        <div class="step"><span class="step-label">Reflect</span> This is hierarchical feature learning made visible. The universal approximation theorem tells us a single hidden layer suffices in principle — but does that match what you're seeing? Why might depth produce qualitatively different features rather than just "more" features? How does this connect to the way convolutional networks learn edges → textures → object parts?</div>
+        <button class="apply-btn" data-config='{"dataset":"spiral","noise":0.05,"arch":"8, 8, 4","activation":"tanh","lr":-1,"spf":1}'>Apply settings</button>
+      </div>
+    </details>
+  </section>
+</div>
+
+<script>
+  // ============================================================
+  //  Neural network from scratch (forward + backprop)
+  // ============================================================
+  class NeuralNet {
+    constructor(layerSizes, activation = 'tanh') {
+      this.layerSizes = layerSizes;
+      this.activation = activation;
+      this.weights = [];
+      this.biases = [];
+      for (let i = 0; i < layerSizes.length - 1; i++) {
+        const fanIn = layerSizes[i], fanOut = layerSizes[i + 1];
+        const limit = Math.sqrt(6 / (fanIn + fanOut));
+        const W = [];
+        for (let j = 0; j < fanOut; j++) {
+          const row = [];
+          for (let k = 0; k < fanIn; k++) row.push((Math.random() * 2 - 1) * limit);
+          W.push(row);
+        }
+        this.weights.push(W);
+        const initBias = activation === 'relu' ? 0.05 : 0;
+        this.biases.push(new Array(fanOut).fill(initBias));
+      }
+    }
+
+    act(x) {
+      if (this.activation === 'tanh') return Math.tanh(x);
+      if (this.activation === 'relu') return x > 0 ? x : 0;
+      return 1 / (1 + Math.exp(-Math.max(-30, Math.min(30, x))));
+    }
+    actDeriv(z, a) {
+      if (this.activation === 'tanh') return 1 - a * a;
+      if (this.activation === 'relu') return z > 0 ? 1 : 0;
+      return a * (1 - a);
+    }
+    sigmoid(x) { return 1 / (1 + Math.exp(-Math.max(-30, Math.min(30, x)))); }
+
+    forward(x) {
+      const acts = [x];
+      const zs = [];
+      let a = x;
+      for (let l = 0; l < this.weights.length; l++) {
+        const W = this.weights[l], b = this.biases[l];
+        const z = new Array(W.length);
+        for (let j = 0; j < W.length; j++) {
+          let s = b[j];
+          const Wj = W[j];
+          for (let k = 0; k < a.length; k++) s += Wj[k] * a[k];
+          z[j] = s;
+        }
+        zs.push(z);
+        const isLast = l === this.weights.length - 1;
+        a = z.map(zi => isLast ? this.sigmoid(zi) : this.act(zi));
+        acts.push(a);
+      }
+      return { acts, zs };
+    }
+
+    predict(x) { return this.forward(x).acts[this.weights.length][0]; }
+
+    trainBatch(X, Y, lr) {
+      const N = X.length;
+      const gradW = this.weights.map(W => W.map(row => row.map(() => 0)));
+      const gradB = this.biases.map(b => b.map(() => 0));
+      let totalLoss = 0;
+      const eps = 1e-12;
+
+      for (let i = 0; i < N; i++) {
+        const { acts, zs } = this.forward(X[i]);
+        const yhat = acts[acts.length - 1][0];
+        const y = Y[i];
+        totalLoss += -(y * Math.log(yhat + eps) + (1 - y) * Math.log(1 - yhat + eps));
+
+        let delta = [yhat - y];
+        for (let l = this.weights.length - 1; l >= 0; l--) {
+          const aPrev = acts[l];
+          for (let j = 0; j < this.weights[l].length; j++) {
+            gradB[l][j] += delta[j];
+            const gWlj = gradW[l][j];
+            for (let k = 0; k < aPrev.length; k++) gWlj[k] += delta[j] * aPrev[k];
+          }
+          if (l > 0) {
+            const newDelta = new Array(aPrev.length).fill(0);
+            for (let k = 0; k < aPrev.length; k++) {
+              let s = 0;
+              for (let j = 0; j < this.weights[l].length; j++) {
+                s += this.weights[l][j][k] * delta[j];
+              }
+              newDelta[k] = s * this.actDeriv(zs[l - 1][k], aPrev[k]);
+            }
+            delta = newDelta;
+          }
+        }
+      }
+
+      for (let l = 0; l < this.weights.length; l++) {
+        for (let j = 0; j < this.weights[l].length; j++) {
+          this.biases[l][j] -= lr * gradB[l][j] / N;
+          for (let k = 0; k < this.weights[l][j].length; k++) {
+            this.weights[l][j][k] -= lr * gradW[l][j][k] / N;
+          }
+        }
+      }
+      return totalLoss / N;
+    }
+
+    loss(X, Y) {
+      let s = 0; const eps = 1e-12;
+      for (let i = 0; i < X.length; i++) {
+        const yhat = this.predict(X[i]);
+        s += -(Y[i] * Math.log(yhat + eps) + (1 - Y[i]) * Math.log(1 - yhat + eps));
+      }
+      return s / X.length;
+    }
+    accuracy(X, Y) {
+      let c = 0;
+      for (let i = 0; i < X.length; i++) {
+        if ((this.predict(X[i]) > 0.5 ? 1 : 0) === Y[i]) c++;
+      }
+      return c / X.length;
+    }
+  }
+
+  // ============================================================
+  //  Datasets
+  // ============================================================
+  function rand2() { return [Math.random() * 2 - 1, Math.random() * 2 - 1]; }
+  function jit(noise) { return (Math.random() - 0.5) * 2 * noise; }
+
+  function genData(name, n, noise) {
+    const X = [], Y = [];
+    if (name === 'xor') {
+      for (let i = 0; i < n; i++) {
+        const [a, b] = rand2();
+        X.push([a + jit(noise), b + jit(noise)]);
+        Y.push(a * b > 0 ? 1 : 0);
+      }
+    } else if (name === 'circle') {
+      for (let i = 0; i < n; i++) {
+        const [a, b] = rand2();
+        X.push([a + jit(noise), b + jit(noise)]);
+        Y.push(Math.sqrt(a * a + b * b) < 0.55 ? 1 : 0);
+      }
+    } else if (name === 'linear') {
+      for (let i = 0; i < n; i++) {
+        const [a, b] = rand2();
+        X.push([a + jit(noise), b + jit(noise)]);
+        Y.push(a + b > 0 ? 1 : 0);
+      }
+    } else if (name === 'checkerboard') {
+      for (let i = 0; i < n; i++) {
+        const [a, b] = rand2();
+        const cell = (Math.floor((a + 1) * 1.5) + Math.floor((b + 1) * 1.5)) % 2;
+        X.push([a + jit(noise), b + jit(noise)]);
+        Y.push(cell);
+      }
+    } else if (name === 'spiral') {
+      const half = Math.floor(n / 2);
+      for (let i = 0; i < half; i++) {
+        const r = (i / half) * 0.95;
+        const t = 1.75 * (i / half) * 2 * Math.PI;
+        X.push([r * Math.sin(t) + jit(noise), r * Math.cos(t) + jit(noise)]);
+        Y.push(1);
+        X.push([-r * Math.sin(t) + jit(noise), -r * Math.cos(t) + jit(noise)]);
+        Y.push(0);
+      }
+    }
+    return { X, Y };
+  }
+
+  function trainTestSplit(X, Y, frac = 0.8) {
+    const idx = X.map((_, i) => i);
+    for (let i = idx.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [idx[i], idx[j]] = [idx[j], idx[i]];
+    }
+    const cut = Math.floor(idx.length * frac);
+    const tr = idx.slice(0, cut), te = idx.slice(cut);
+    return {
+      Xtr: tr.map(i => X[i]), Ytr: tr.map(i => Y[i]),
+      Xte: te.map(i => X[i]), Yte: te.map(i => Y[i])
+    };
+  }
+
+  // ============================================================
+  //  Visualization
+  // ============================================================
+  const networkCanvas  = document.getElementById('network');
+  const nctx = networkCanvas.getContext('2d');
+  const boundaryCanvas = document.getElementById('boundary');
+  const bctx = boundaryCanvas.getContext('2d');
+  const lossCanvas = document.getElementById('loss');
+  const lctx = lossCanvas.getContext('2d');
+
+  function setupHiDPI(canvas, ctx) {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+    return { w: rect.width, h: rect.height };
+  }
+  let bsize, lsize, nsize;
+
+  function networkCanvasHeight() {
+    const sizes = net ? net.layerSizes : [2, 6, 4, 1];
+    const maxN = Math.max(...sizes);
+    return Math.max(260, Math.min(520, maxN * 50 + 80));
+  }
+  function setupCanvases() {
+    networkCanvas.style.height = networkCanvasHeight() + 'px';
+    nsize = setupHiDPI(networkCanvas, nctx);
+    bsize = setupHiDPI(boundaryCanvas, bctx);
+    lsize = setupHiDPI(lossCanvas, lctx);
+  }
+
+  function predToColor(p) {
+    const c0 = [207, 226, 255], c1 = [255, 226, 197];
+    return [
+      (c0[0] + (c1[0] - c0[0]) * p) | 0,
+      (c0[1] + (c1[1] - c0[1]) * p) | 0,
+      (c0[2] + (c1[2] - c0[2]) * p) | 0
+    ];
+  }
+
+  function drawBoundary(net, train, test) {
+    const { w, h } = bsize;
+    const grid = 70;
+    const img = bctx.createImageData(grid, grid);
+    for (let i = 0; i < grid; i++) {
+      for (let j = 0; j < grid; j++) {
+        const x = ((i + 0.5) / grid) * 2 - 1;
+        const y = 1 - ((j + 0.5) / grid) * 2;
+        const p = net.predict([x, y]);
+        const rgb = predToColor(p);
+        const idx = (j * grid + i) * 4;
+        img.data[idx] = rgb[0]; img.data[idx + 1] = rgb[1]; img.data[idx + 2] = rgb[2]; img.data[idx + 3] = 255;
+      }
+    }
+    const tmp = document.createElement('canvas');
+    tmp.width = grid; tmp.height = grid;
+    tmp.getContext('2d').putImageData(img, 0, 0);
+    bctx.imageSmoothingEnabled = true;
+    bctx.imageSmoothingQuality = 'high';
+    bctx.clearRect(0, 0, w, h);
+    bctx.drawImage(tmp, 0, 0, w, h);
+
+    bctx.strokeStyle = 'rgba(0,0,0,0.06)';
+    bctx.lineWidth = 1;
+    for (let i = 1; i < 4; i++) {
+      bctx.beginPath(); bctx.moveTo(i * w / 4, 0); bctx.lineTo(i * w / 4, h); bctx.stroke();
+      bctx.beginPath(); bctx.moveTo(0, i * h / 4); bctx.lineTo(w, i * h / 4); bctx.stroke();
+    }
+
+    function drawPt(p, lbl, isTest) {
+      const px = ((p[0] + 1) / 2) * w;
+      const py = ((1 - p[1]) / 2) * h;
+      bctx.beginPath();
+      bctx.arc(px, py, 4, 0, Math.PI * 2);
+      const col = lbl === 1 ? '#ff7f0e' : '#1f77b4';
+      if (isTest) {
+        bctx.fillStyle = 'white'; bctx.fill();
+        bctx.strokeStyle = col; bctx.lineWidth = 2; bctx.stroke();
+      } else {
+        bctx.fillStyle = col; bctx.fill();
+        bctx.strokeStyle = 'rgba(0,0,0,0.45)'; bctx.lineWidth = 0.5; bctx.stroke();
+      }
+    }
+    for (let i = 0; i < train.X.length; i++) drawPt(train.X[i], train.Y[i], false);
+    for (let i = 0; i < test.X.length; i++) drawPt(test.X[i], test.Y[i], true);
+  }
+
+  // -------- Network architecture visualization --------
+  function neuronShade(a, isOutput, activation) {
+    if (isOutput) return Math.max(0, Math.min(1, a));
+    if (activation === 'tanh')   return Math.max(0, Math.min(1, (a + 1) / 2));
+    if (activation === 'sigmoid')return Math.max(0, Math.min(1, a));
+    if (activation === 'relu')   return Math.max(0, Math.min(1, a / 2));
+    return 0.5;
+  }
+
+  function drawNetwork(net) {
+    const { w, h } = nsize;
+    nctx.clearRect(0, 0, w, h);
+    if (!net) return;
+
+    const sizes = net.layerSizes;
+    const nLayers = sizes.length;
+    const margin = { top: 18, bottom: 30, left: 60, right: 50 };
+    const innerW = w - margin.left - margin.right;
+    const innerH = h - margin.top - margin.bottom;
+
+    const layerX = sizes.map((_, i) => margin.left + (innerW * i) / Math.max(1, nLayers - 1));
+    const maxNeurons = Math.max(...sizes);
+    const slot = innerH / maxNeurons;
+    const r = Math.min(26, Math.max(8, slot * 0.42));
+
+    const neuronY = sizes.map(size => {
+      const total = size * slot;
+      const startY = margin.top + (innerH - total) / 2 + slot / 2;
+      return Array.from({ length: size }, (_, i) => startY + i * slot);
+    });
+
+    // ---- Connections ----
+    let maxAbsW = 0;
+    for (let l = 0; l < net.weights.length; l++)
+      for (let j = 0; j < net.weights[l].length; j++)
+        for (let k = 0; k < net.weights[l][j].length; k++)
+          maxAbsW = Math.max(maxAbsW, Math.abs(net.weights[l][j][k]));
+    if (maxAbsW < 1e-6) maxAbsW = 1;
+
+    for (let l = 0; l < net.weights.length; l++) {
+      const W = net.weights[l];
+      for (let j = 0; j < W.length; j++) {
+        for (let k = 0; k < W[j].length; k++) {
+          const wkt = W[j][k];
+          const norm = Math.abs(wkt) / maxAbsW;
+          if (norm < 0.02) continue;
+          const x1 = layerX[l] + r;
+          const y1 = neuronY[l][k];
+          const x2 = layerX[l + 1] - r;
+          const y2 = neuronY[l + 1][j];
+          nctx.beginPath();
+          nctx.moveTo(x1, y1);
+          nctx.lineTo(x2, y2);
+          nctx.strokeStyle = wkt > 0
+            ? `rgba(255, 127, 14, ${0.18 + norm * 0.65})`
+            : `rgba(31, 119, 180, ${0.18 + norm * 0.65})`;
+          nctx.lineWidth = 0.4 + norm * 3.2;
+          nctx.stroke();
+        }
+      }
+    }
+
+    // ---- Per-unit response surfaces ----
+    const G = 22;
+    const acts = sizes.slice(1).map(size =>
+      Array.from({ length: size }, () => new Float32Array(G * G))
+    );
+    for (let i = 0; i < G; i++) {
+      for (let j = 0; j < G; j++) {
+        const x = ((i + 0.5) / G) * 2 - 1;
+        const y = 1 - ((j + 0.5) / G) * 2;
+        const { acts: aLayers } = net.forward([x, y]);
+        for (let l = 1; l < aLayers.length; l++) {
+          for (let k = 0; k < aLayers[l].length; k++) {
+            acts[l - 1][k][j * G + i] = aLayers[l][k];
+          }
+        }
+      }
+    }
+
+    function renderHeatmapToTemp(values, asPredFn) {
+      const tmp = document.createElement('canvas');
+      tmp.width = G; tmp.height = G;
+      const tCtx = tmp.getContext('2d');
+      const img = tCtx.createImageData(G, G);
+      for (let p = 0; p < G * G; p++) {
+        const shade = asPredFn(values[p]);
+        const rgb = predToColor(shade);
+        const idx = p * 4;
+        img.data[idx] = rgb[0]; img.data[idx + 1] = rgb[1]; img.data[idx + 2] = rgb[2]; img.data[idx + 3] = 255;
+      }
+      tCtx.putImageData(img, 0, 0);
+      return tmp;
+    }
+
+    function drawNode(cx, cy, tmp, borderStyle = '#666', borderW = 1) {
+      nctx.save();
+      nctx.beginPath();
+      nctx.arc(cx, cy, r, 0, Math.PI * 2);
+      nctx.fillStyle = '#fff';
+      nctx.fill();
+      nctx.clip();
+      nctx.imageSmoothingEnabled = true;
+      nctx.imageSmoothingQuality = 'high';
+      nctx.drawImage(tmp, cx - r, cy - r, 2 * r, 2 * r);
+      nctx.restore();
+      nctx.beginPath();
+      nctx.arc(cx, cy, r, 0, Math.PI * 2);
+      nctx.strokeStyle = borderStyle;
+      nctx.lineWidth = borderW;
+      nctx.stroke();
+    }
+
+    // Input neurons: identity surfaces (x1 horizontal, x2 vertical gradients)
+    for (let i = 0; i < sizes[0]; i++) {
+      const cx = layerX[0], cy = neuronY[0][i];
+      const isX1 = i === 0;
+      const vals = new Float32Array(G * G);
+      for (let gx = 0; gx < G; gx++) {
+        for (let gy = 0; gy < G; gy++) {
+          const x = ((gx + 0.5) / G) * 2 - 1;
+          const y = 1 - ((gy + 0.5) / G) * 2;
+          vals[gy * G + gx] = isX1 ? x : y;
+        }
+      }
+      const tmp = renderHeatmapToTemp(vals, v => (v + 1) / 2);
+      drawNode(cx, cy, tmp, '#444', 1.5);
+      nctx.fillStyle = '#333';
+      nctx.font = '13px ui-monospace, "SF Mono", Menlo, monospace';
+      nctx.textAlign = 'right';
+      nctx.textBaseline = 'middle';
+      nctx.fillText(isX1 ? 'x\u2081' : 'x\u2082', cx - r - 8, cy);
+    }
+
+    // Hidden + output
+    for (let l = 1; l < nLayers; l++) {
+      const isOutput = l === nLayers - 1;
+      for (let j = 0; j < sizes[l]; j++) {
+        const cx = layerX[l], cy = neuronY[l][j];
+        const vals = acts[l - 1][j];
+        const tmp = renderHeatmapToTemp(
+          vals,
+          v => neuronShade(v, isOutput, net.activation)
+        );
+        drawNode(cx, cy, tmp,
+          isOutput ? '#1f1f1f' : '#666',
+          isOutput ? 2 : 1
+        );
+      }
+    }
+
+    // Layer labels
+    nctx.fillStyle = '#666';
+    nctx.font = '11px -apple-system, system-ui, sans-serif';
+    nctx.textAlign = 'center';
+    nctx.textBaseline = 'top';
+    for (let l = 0; l < nLayers; l++) {
+      const label = l === 0 ? 'input'
+                  : l === nLayers - 1 ? 'output \u0177'
+                  : `h${l} (${sizes[l]})`;
+      nctx.fillText(label, layerX[l], h - margin.bottom + 10);
+    }
+  }
+
+  let lossHist = [], testLossHist = [];
+
+  function drawLossCurve() {
+    const { w, h } = lsize;
+    lctx.clearRect(0, 0, w, h);
+    if (lossHist.length === 0) return;
+
+    const pad = { l: 42, r: 14, t: 10, b: 26 };
+    const pw = w - pad.l - pad.r, ph = h - pad.t - pad.b;
+    const maxL = Math.max(0.05, ...lossHist, ...testLossHist);
+
+    lctx.strokeStyle = '#aaa'; lctx.lineWidth = 1;
+    lctx.beginPath();
+    lctx.moveTo(pad.l, pad.t); lctx.lineTo(pad.l, pad.t + ph);
+    lctx.lineTo(pad.l + pw, pad.t + ph); lctx.stroke();
+
+    lctx.font = '11px -apple-system, system-ui, sans-serif';
+    lctx.fillStyle = '#666';
+    lctx.textAlign = 'right'; lctx.textBaseline = 'middle';
+    for (let i = 0; i <= 4; i++) {
+      const v = maxL * (1 - i / 4);
+      const y = pad.t + (i / 4) * ph;
+      lctx.fillText(v.toFixed(2), pad.l - 5, y);
+      lctx.strokeStyle = 'rgba(0,0,0,0.05)';
+      lctx.beginPath(); lctx.moveTo(pad.l, y); lctx.lineTo(pad.l + pw, y); lctx.stroke();
+    }
+    lctx.textAlign = 'center';
+    lctx.fillText('epoch (' + lossHist.length + ' total)', pad.l + pw / 2, h - 6);
+
+    function series(arr, color) {
+      if (arr.length < 2) return;
+      lctx.strokeStyle = color; lctx.lineWidth = 1.6;
+      lctx.beginPath();
+      for (let i = 0; i < arr.length; i++) {
+        const x = pad.l + (i / (arr.length - 1)) * pw;
+        const y = pad.t + (1 - arr[i] / maxL) * ph;
+        if (i === 0) lctx.moveTo(x, y); else lctx.lineTo(x, y);
+      }
+      lctx.stroke();
+    }
+    series(lossHist, '#1f77b4');
+    series(testLossHist, '#ff7f0e');
+
+    lctx.textAlign = 'left'; lctx.textBaseline = 'alphabetic';
+    lctx.fillStyle = '#1f77b4'; lctx.fillText('\u2014 train', pad.l + 6, pad.t + 11);
+    lctx.fillStyle = '#ff7f0e'; lctx.fillText('\u2014 test',  pad.l + 56, pad.t + 11);
+  }
+
+  // ============================================================
+  //  Wiring
+  // ============================================================
+  let net = null, data = null, split = null, epoch = 0, playing = false, raf = null;
+
+  const els = {
+    dataset: document.getElementById('dataset'),
+    noise: document.getElementById('noise'), noiseValue: document.getElementById('noiseValue'),
+    arch: document.getElementById('arch'),
+    lr: document.getElementById('lr'), lrValue: document.getElementById('lrValue'),
+    activation: document.getElementById('activation'),
+    spf: document.getElementById('spf'), spfValue: document.getElementById('spfValue'),
+    playBtn: document.getElementById('playBtn'), stepBtn: document.getElementById('stepBtn'),
+    resetBtn: document.getElementById('resetBtn'), resampleBtn: document.getElementById('resampleBtn'),
+    epoch: document.getElementById('epoch'),
+    trainLoss: document.getElementById('trainLoss'), testLoss: document.getElementById('testLoss'),
+    trainAcc: document.getElementById('trainAcc'), testAcc: document.getElementById('testAcc'),
+  };
+
+  const lr    = () => Math.pow(10, parseFloat(els.lr.value));
+  const noise = () => parseFloat(els.noise.value);
+  const spf   = () => parseInt(els.spf.value);
+  const arch  = () => els.arch.value.trim()
+                        .split(',').map(s => parseInt(s.trim()))
+                        .filter(n => Number.isFinite(n) && n > 0);
+
+  function updDisp() {
+    els.noiseValue.textContent = noise().toFixed(2);
+    els.lrValue.textContent = lr().toFixed(3);
+    els.spfValue.textContent = spf();
+  }
+
+  function buildNet() { net = new NeuralNet([2, ...arch(), 1], els.activation.value); }
+  function regenData() {
+    data = genData(els.dataset.value, 240, noise());
+    split = trainTestSplit(data.X, data.Y, 0.8);
+  }
+
+  function reset(regen = true) {
+    pause();
+    if (regen) regenData();
+    buildNet();
+    setupCanvases();
+    epoch = 0; lossHist = []; testLossHist = [];
+    updateStats(NaN);
+    render();
+  }
+
+  function updateStats(trainL) {
+    els.epoch.textContent = epoch;
+    if (Number.isFinite(trainL)) els.trainLoss.textContent = trainL.toFixed(4);
+    if (epoch > 0 && net) {
+      els.testLoss.textContent = net.loss(split.Xte, split.Yte).toFixed(4);
+      els.trainAcc.textContent = (net.accuracy(split.Xtr, split.Ytr) * 100).toFixed(1) + '%';
+      els.testAcc.textContent  = (net.accuracy(split.Xte, split.Yte) * 100).toFixed(1) + '%';
+    }
+  }
+  function trainStep() {
+    const tl = net.trainBatch(split.Xtr, split.Ytr, lr());
+    epoch += 1;
+    lossHist.push(tl);
+    testLossHist.push(net.loss(split.Xte, split.Yte));
+    return tl;
+  }
+  function render() {
+    drawNetwork(net);
+    drawBoundary(net, { X: split.Xtr, Y: split.Ytr }, { X: split.Xte, Y: split.Yte });
+    drawLossCurve();
+  }
+  function loop() {
+    if (!playing) return;
+    let lastL = NaN;
+    for (let i = 0; i < spf(); i++) lastL = trainStep();
+    updateStats(lastL);
+    render();
+    raf = requestAnimationFrame(loop);
+  }
+  function play()  { if (playing) return; playing = true;  els.playBtn.textContent = 'Pause'; raf = requestAnimationFrame(loop); }
+  function pause() { if (!playing) return; playing = false; els.playBtn.textContent = 'Play';  if (raf) cancelAnimationFrame(raf); }
+
+  els.dataset.addEventListener('change', () => reset(true));
+  els.noise.addEventListener('input',  updDisp);
+  els.noise.addEventListener('change', () => reset(true));
+  els.arch.addEventListener('change',  () => reset(false));
+  els.lr.addEventListener('input',     updDisp);
+  els.activation.addEventListener('change', () => reset(false));
+  els.spf.addEventListener('input',    updDisp);
+
+  els.playBtn.addEventListener('click', () => playing ? pause() : play());
+  els.stepBtn.addEventListener('click', () => {
+    if (playing) pause();
+    const tl = trainStep(); updateStats(tl); render();
+  });
+  els.resetBtn.addEventListener('click', () => reset(false));
+  els.resampleBtn.addEventListener('click', () => reset(true));
+
+  window.addEventListener('resize', () => { setupCanvases(); if (net) render(); });
+
+  // Exercise "Apply settings" buttons
+  document.querySelectorAll('.apply-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      let cfg;
+      try { cfg = JSON.parse(btn.dataset.config); } catch { return; }
+      if (cfg.dataset    !== undefined) els.dataset.value    = cfg.dataset;
+      if (cfg.noise      !== undefined) els.noise.value      = cfg.noise;
+      if (cfg.arch       !== undefined) els.arch.value       = cfg.arch;
+      if (cfg.activation !== undefined) els.activation.value = cfg.activation;
+      if (cfg.lr         !== undefined) els.lr.value         = cfg.lr;
+      if (cfg.spf        !== undefined) els.spf.value        = cfg.spf;
+      updDisp();
+      reset(true);
+      // Smooth-scroll to the playground so the user sees the new state
+      document.querySelector('.layout').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  setupCanvases();
+  updDisp();
+  reset(true);
+</script>
+</body>
+</html>
